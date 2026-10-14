@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cổng thông tin khảo sát</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--p:#0b6fb8;--pl:#e8f3fb;--bg:#f6f8fb;--c:#fff;--t:#1c2733;--m:#6b7785;--b:#d8dfe8;--e:#c0392b;--eb:#fdecea}
+:root{--p:#1d4f9f;--pl:#e8eefa;--bg:#f8fafd;--c:#fff;--t:#1c2733;--m:#6b7785;--b:#d8dfe8;--e:#c0392b;--eb:#fdecea}
 @media(prefers-color-scheme:dark){:root{--bg:#10161d;--c:#18212b;--t:#e6edf5;--m:#93a1b1;--b:#2c3a49;--e:#ff8a7a;--eb:#3a1d1a}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
 header{position:sticky;top:0;z-index:5;background:var(--c);border-bottom:1px solid var(--b);display:flex;gap:14px;align-items:center;padding:8px 16px;overflow-x:auto}
 header b{white-space:nowrap}header img{height:28px}nav{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:8px}
 nav a{padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap;cursor:pointer}nav a.on{background:var(--c);font-weight:600;box-shadow:0 1px 2px #0002}
@@ -67,7 +68,7 @@ function qh(q){const v=A[q.code],o=q.options||[],c=q.code,t=q.type;
    b=(fl.length?`<div class="fl">${sel("level","Cấp học")}${sel("grade","Khối")}${sel("subject","Môn học")}${fl.includes("search")?`<div><small>Tìm theo tên</small><input data-f="${c}" data-k="q" value="${esc(f.q||"")}"></div>`:""}</div>`:"")+
    `<div class="hp">${L.length} mục phù hợp · Đã chọn ${a.length}</div><div class="grid">${L.map(x=>`<div class="it ${a.includes(x.value)?"sel":""}" data-m="${c}" data-v="${esc(x.value)}">${x.image_path?`<img src="${img(x.image_path)}" alt="">`:""}<b>${esc(x.label)}</b><div>${[x.meta.level,x.meta.group,...(x.meta.tags||[])].filter(Boolean).map(y=>`<span class="tag">${esc(y)}</span>`).join("")}</div>${x.meta.grade?`<small>Khối ${x.meta.grade}</small>`:""}</div>`).join("")}</div>`}}
  return`<div class="q" id="q-${c}"><label class="l">${esc(q.label)}${q.required?' <span class="req">*</span>':""}</label>${q.help?`<div class="hp">${esc(q.help)}</div>`:""}${b}${E(c)}</div>`}
-function hdr(){const th=SV.theme||{};document.documentElement.style.setProperty("--p",th.primary||"#0b6fb8");document.documentElement.style.setProperty("--pl",th.secondary||"#e8f3fb");
+function hdr(){const th=SV.theme||{};document.documentElement.style.setProperty("--p",th.primary||"#1d4f9f");document.documentElement.style.setProperty("--pl",th.secondary||"#e8eefa");
  $("#hd").innerHTML=`${SV.logo_path?`<img src="${img(SV.logo_path)}" alt="">`:""}<b>${esc(SV.title)}</b><nav>${SV.sections.map((s,i)=>`<a class="${i==ST?"on":""}" data-st="${i}">${esc(s.title)}</a>`).join("")}</nav>`}
 function render(){if(!SV)return;hdr();pct();const a=$("#app");
  if(DONE){a.innerHTML=`<div class="card" style="text-align:center;padding:36px"><div style="font-size:42px">✅</div><h1>${esc(SV.thanks_title)}</h1><p>${esc(SV.thanks_message)}</p><a href="?">← Về danh sách khảo sát</a></div>`;return}

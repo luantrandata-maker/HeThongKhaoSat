@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quản trị khảo sát</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--p:#0b6fb8;--pl:#e8f3fb;--bg:#f6f8fb;--c:#fff;--t:#1c2733;--m:#6b7785;--b:#d8dfe8;--e:#c0392b}
-@media(prefers-color-scheme:dark){:root{--bg:#10161d;--c:#18212b;--t:#e6edf5;--m:#93a1b1;--b:#2c3a49;--pl:#16324a;--e:#ff8a7a}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-header{background:var(--c);border-bottom:1px solid var(--b);display:flex;gap:6px;align-items:center;padding:8px 16px;position:sticky;top:0;z-index:5;flex-wrap:wrap}
-header b{margin-right:12px}main{max-width:1000px;margin:0 auto;padding:16px}.sp{flex:1}
+:root{--p:#1d4f9f;--pl:#e8eefa;--bg:#f8fafd;--c:#fff;--t:#1c2733;--m:#6b7785;--b:#dfe5ee;--e:#c0392b;--nv:#152e5d;--nv2:#234077;--or:#f7a823}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.app{display:flex;min-height:100vh}aside{width:250px;background:var(--nv);color:#fff;padding:16px 8px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
+aside .lg{display:flex;align-items:center;gap:8px;padding:4px 12px 18px;font-weight:800;font-size:20px}aside .lg i{width:30px;height:30px;border:4px solid var(--or);border-radius:50%;border-right-color:transparent}
+aside h6{color:var(--or);font-size:13px;letter-spacing:.3px;margin:14px 12px 6px;text-transform:uppercase}
+aside button{display:block;width:100%;text-align:left;background:none;border:0;color:#fff;padding:9px 12px;border-radius:6px;font-weight:500}aside button:hover{background:#1c3a70}aside button.on{background:var(--nv2)}
+.cw{flex:1;min-width:0}.top{height:56px;background:var(--c);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px;padding:0 20px;position:sticky;top:0;z-index:5}
+.av{width:30px;height:30px;border-radius:50%;background:var(--pl);color:var(--p);display:grid;place-items:center;font-weight:700}
+h1.pt{font-size:26px;text-transform:uppercase;margin:4px 0 2px;font-weight:800}main{max-width:1100px;margin:0 auto;padding:20px}.sp{flex:1}
+@media(max-width:800px){.app{display:block}aside{width:auto;height:auto;position:static}}
 button,.btn{font:inherit;border:1px solid var(--b);background:var(--c);color:var(--t);border-radius:6px;padding:5px 11px;cursor:pointer}
-button.p{background:var(--p);color:#fff;border-color:var(--p)}button.on{background:var(--pl);color:var(--p);border-color:var(--p)}button.d{color:var(--e)}button.x{padding:2px 7px}
+button.p{background:var(--p);color:#fff;border-color:var(--p)}.k{color:var(--nv)!important}button.on{background:var(--pl);color:var(--p);border-color:var(--p)}button.d{color:var(--e)}button.x{padding:2px 7px}
 input,select,textarea{width:100%;padding:7px 9px;border:1px solid var(--b);border-radius:6px;background:var(--c);color:var(--t);font:inherit}input[type=checkbox]{width:auto}
 .card{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:12px}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .k{font-size:26px;font-weight:700;color:var(--p)}small,.m{color:var(--m);font-size:12px}table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid var(--b);text-align:left;vertical-align:top}
@@ -30,9 +36,9 @@ const fmt=d=>d?new Date(d).toLocaleString("vi-VN"):"";const uid=()=>crypto.rando
 const root=$("#root");let B,R,FL={q:"",s:""};
 async function boot(msg){const{data:{session}}=await sb.auth.getSession();if(!session)return login(msg);
  const{data:ok}=await sb.rpc("is_admin");if(!ok){await sb.auth.signOut();return login("Tài khoản này chưa được cấp quyền quản trị.")}
- root.innerHTML=`<header><b>📋 Quản trị khảo sát</b>${[["dash","Tổng quan"],["list","Khảo sát"],["resp","Phản hồi"]].map(x=>`<button data-go="${x[0]}">${x[1]}</button>`).join("")}<span class="sp"></span><small>${esc(session.user.email)}</small><button id="out">Đăng xuất</button></header><main id="v"></main>`;go("dash")}
+ root.innerHTML=`<div class="app"><aside><div class="lg"><i></i>KDI</div><h6>Khảo sát</h6>${[["dash","▦ Tổng quan"],["list","☰ Khảo sát"],["resp","▤ Phản hồi"]].map(x=>`<button data-go="${x[0]}">${x[1]}</button>`).join("")}<h6>Hệ thống</h6><button id="out">⎋ Đăng xuất</button></aside><div class="cw"><div class="top"><span style="color:var(--m)">Hệ thống khảo sát nội bộ</span><span class="sp"></span><span class="av">${esc(session.user.email[0].toUpperCase())}</span><span>${esc(session.user.email)}</span></div><main><h1 class="pt" id="pt"></h1><div id="v"></div></main></div></div>`;go("dash")}
 function login(msg){root.innerHTML=`<main style="max-width:360px"><div class="card"><h2>Đăng nhập quản trị</h2>${msg?`<p class="err">${msg}</p>`:""}<label class="l">Email</label><input id="em"><label class="l">Mật khẩu</label><input id="pw" type="password"><p><button class="p" id="li">Đăng nhập</button></p></div></main>`}
-const go=v=>{document.querySelectorAll("[data-go]").forEach(b=>b.classList.toggle("on",b.dataset.go==v));({dash,list,resp,build})[v]()};
+const PT={dash:"Tổng quan",list:"Quản lý khảo sát",resp:"Phản hồi",build:"Thiết kế khảo sát"};const go=v=>{const t=$("#pt");if(t)t.textContent=PT[v];document.querySelectorAll("[data-go]").forEach(b=>b.classList.toggle("on",b.dataset.go==v));({dash,list,resp,build})[v]()};
 async function dash(){const V=$("#v");V.innerHTML="Đang tải…";
  const[s,r,a]=await Promise.all([sb.from("surveys").select("id,title,status,updated_at").order("updated_at",{ascending:false}),sb.from("responses").select("survey_id,submitted_at").order("submitted_at",{ascending:false}).limit(10000),sb.from("admin_activity").select("*").order("created_at",{ascending:false}).limit(8)]);
  const S=s.data||[],Rs=r.data||[],n=x=>S.filter(y=>x.includes(y.status)).length,days=[...Array(14)].map((_,i)=>{const d=new Date(Date.now()-(13-i)*864e5).toLocaleDateString("sv");return[d,Rs.filter(x=>new Date(x.submitted_at).toLocaleDateString("sv")==d).length]}),mx=Math.max(1,...days.map(x=>x[1]));
@@ -58,7 +64,7 @@ async function dup(id){const o=await load(id),n=uid(),s={...o.s,id:n,slug:o.s.sl
   if(q.opts.length)await sb.from("question_options").insert(q.opts.map(({id,question_id,...p})=>({...p,question_id:qm[q.id]})))}list()}
 const nq=()=>({id:uid(),code:"cau_"+Math.random().toString(36).slice(2,6),type:"short_text",label:"Câu hỏi mới",help:"",required:false,position:0,rules:{},visible_if:null,allow_other:false,config:{},opts:[],_new:1});
 function vparse(q){const c=q.visible_if,x=c&&(c.all||c.any||[])[0];return{vq:x?.q||"",vop:x?.op||"filled",vval:(x?.value||[]).join?.(",")??x?.value??"",vraw:c&&((c.all||c.any||[]).length>1||c.any)?c:null}}
-async function build(id){const V=$("#v");if(id!==undefined){B=id?await load(id):{s:{id:uid(),slug:"",title:"",status:"draft",theme:{primary:"#0b6fb8",secondary:"#e8f3fb",layout:"single"},is_listed:true,require_login:false,thanks_title:"Gửi phản hồi thành công!",thanks_message:"Cảm ơn bạn đã tham gia khảo sát.",_new:1},secs:[{id:uid(),title:"Phần 1",description:"",position:1,qs:[],_new:1}]};B.del={s:[],q:[]};B.secs.forEach(s=>s.qs.forEach(q=>{Object.assign(q,vparse(q));q.optText=(q.opts||[]).map(o=>[o.value,o.label!=o.value?o.label:"",o.description||"",o.image_path||"",o.meta&&Object.keys(o.meta).length?JSON.stringify(o.meta):""].join("|").replace(/\|+$/,"")).join("\n");q.rulesText=JSON.stringify(q.rules||{});q.cfgText=JSON.stringify(q.config||{})}))}
+async function build(id){const V=$("#v");$("#pt").textContent=PT.build;if(id!==undefined){B=id?await load(id):{s:{id:uid(),slug:"",title:"",status:"draft",theme:{primary:"#1d4f9f",secondary:"#e8eefa",layout:"single"},is_listed:true,require_login:false,thanks_title:"Gửi phản hồi thành công!",thanks_message:"Cảm ơn bạn đã tham gia khảo sát.",_new:1},secs:[{id:uid(),title:"Phần 1",description:"",position:1,qs:[],_new:1}]};B.del={s:[],q:[]};B.secs.forEach(s=>s.qs.forEach(q=>{Object.assign(q,vparse(q));q.optText=(q.opts||[]).map(o=>[o.value,o.label!=o.value?o.label:"",o.description||"",o.image_path||"",o.meta&&Object.keys(o.meta).length?JSON.stringify(o.meta):""].join("|").replace(/\|+$/,"")).join("\n");q.rulesText=JSON.stringify(q.rules||{});q.cfgText=JSON.stringify(q.config||{})}))}
  const s=B.s,codes=B.secs.flatMap(x=>x.qs.map(q=>q.code)),I=(p,v,t="text")=>`<input type="${t}" data-p="${p}" value="${esc(v)}">`,dt=v=>v?new Date(new Date(v)-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16):"";
  V.innerHTML=`<div class="row"><button id="bk">← Danh sách</button><b>${s._new?"Tạo khảo sát":"Sửa: "+esc(s.title)}</b><span class="tag">${ST[s.status]}</span><span class="sp"></span><button class="p" id="save">💾 Lưu thay đổi</button></div>
  <div class="card"><div class="g2"><div><label class="l">Tiêu đề</label>${I("s.title",s.title)}</div><div><label class="l">Đường dẫn (slug)</label>${I("s.slug",s.slug)}</div></div>
@@ -117,7 +123,7 @@ document.addEventListener("change",async e=>{const t=e.target;if(t.dataset.p&&(t
 document.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
  if(d.go)go(d.go);else if(t.id=="out"){await sb.auth.signOut();boot()}
  else if(t.id=="li"){const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});error?login("Email hoặc mật khẩu không đúng."):boot()}
- else if(t.id=="new")build(null);else if(d.edit)build(d.edit);else if(t.id=="bk")list();else if(t.id=="save")save();
+ else if(t.id=="new")build(null);else if(d.edit)build(d.edit);else if(t.id=="bk")go("list");else if(t.id=="save")save();
  else if(d.st){const[id,s]=d.st.split("|"),{error}=await sb.from("surveys").update({status:s}).eq("id",id);if(error)alert(error.message);list()}
  else if(d.dup)dup(d.dup);
  else if(d.del){if(!confirm("Xóa khảo sát này? Chỉ xóa được khi chưa có phản hồi."))return;const{error}=await sb.from("surveys").delete().eq("id",d.del);if(error)alert(error.message);list()}
