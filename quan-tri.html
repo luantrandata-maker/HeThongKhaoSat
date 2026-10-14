@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quản trị khảo sát</title>
+<style>
+:root{--p:#0b6fb8;--pl:#e8f3fb;--bg:#f6f8fb;--c:#fff;--t:#1c2733;--m:#6b7785;--b:#d8dfe8;--e:#c0392b}
+@media(prefers-color-scheme:dark){:root{--bg:#10161d;--c:#18212b;--t:#e6edf5;--m:#93a1b1;--b:#2c3a49;--pl:#16324a;--e:#ff8a7a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--c);border-bottom:1px solid var(--b);display:flex;gap:6px;align-items:center;padding:8px 16px;position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header b{margin-right:12px}main{max-width:1000px;margin:0 auto;padding:16px}.sp{flex:1}
+button,.btn{font:inherit;border:1px solid var(--b);background:var(--c);color:var(--t);border-radius:6px;padding:5px 11px;cursor:pointer}
+button.p{background:var(--p);color:#fff;border-color:var(--p)}button.on{background:var(--pl);color:var(--p);border-color:var(--p)}button.d{color:var(--e)}button.x{padding:2px 7px}
+input,select,textarea{width:100%;padding:7px 9px;border:1px solid var(--b);border-radius:6px;background:var(--c);color:var(--t);font:inherit}input[type=checkbox]{width:auto}
+.card{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:12px}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.k{font-size:26px;font-weight:700;color:var(--p)}small,.m{color:var(--m);font-size:12px}table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid var(--b);text-align:left;vertical-align:top}
+.tag{background:var(--pl);color:var(--p);border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600}.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bars{display:flex;align-items:flex-end;gap:3px;height:100px}.bars i{flex:1;background:var(--p);border-radius:3px 3px 0 0;min-height:2px}
+.hb{display:flex;align-items:center;gap:8px;margin:3px 0}.hb div{height:14px;background:var(--p);border-radius:3px}
+label.l{display:block;font-weight:600;font-size:12px;margin:8px 0 3px}.qb{border:1px solid var(--b);border-radius:8px;padding:10px;margin:8px 0;background:var(--bg)}
+.err{color:var(--e)}.md{position:fixed;inset:0;background:#0008;display:grid;place-items:center;z-index:9}.md>div{background:var(--c);border-radius:10px;padding:16px;max-width:640px;width:92%;max-height:85vh;overflow:auto}
+</style></head><body><div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const SB="https://hxpumgubpxeomrqtbhnb.supabase.co",KEY="sb_publishable_bXd9EwZ2_h_bZPJvecq_sw_MxlTypFo",PUBLIC_PAGE="index.html";
+const sb=supabase.createClient(SB,KEY);
+const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ST={draft:"Bản nháp",published:"Đã xuất bản",closed:"Đã đóng",archived:"Đã lưu trữ"};
+const TY={short_text:"Văn bản ngắn",long_text:"Văn bản dài",single_choice:"Chọn một",multi_choice:"Chọn nhiều",dropdown:"Danh sách thả xuống",number:"Nhập số",date:"Chọn ngày",rating:"Thang điểm",heading:"Tiêu đề / phân phần"};
+const fmt=d=>d?new Date(d).toLocaleString("vi-VN"):"";const uid=()=>crypto.randomUUID();
+const root=$("#root");let B,R,FL={q:"",s:""};
+async function boot(msg){const{data:{session}}=await sb.auth.getSession();if(!session)return login(msg);
+ const{data:ok}=await sb.rpc("is_admin");if(!ok){await sb.auth.signOut();return login("Tài khoản này chưa được cấp quyền quản trị.")}
+ root.innerHTML=`<header><b>📋 Quản trị khảo sát</b>${[["dash","Tổng quan"],["list","Khảo sát"],["resp","Phản hồi"]].map(x=>`<button data-go="${x[0]}">${x[1]}</button>`).join("")}<span class="sp"></span><small>${esc(session.user.email)}</small><button id="out">Đăng xuất</button></header><main id="v"></main>`;go("dash")}
+function login(msg){root.innerHTML=`<main style="max-width:360px"><div class="card"><h2>Đăng nhập quản trị</h2>${msg?`<p class="err">${msg}</p>`:""}<label class="l">Email</label><input id="em"><label class="l">Mật khẩu</label><input id="pw" type="password"><p><button class="p" id="li">Đăng nhập</button></p></div></main>`}
+const go=v=>{document.querySelectorAll("[data-go]").forEach(b=>b.classList.toggle("on",b.dataset.go==v));({dash,list,resp,build})[v]()};
+async function dash(){const V=$("#v");V.innerHTML="Đang tải…";
+ const[s,r,a]=await Promise.all([sb.from("surveys").select("id,title,status,updated_at").order("updated_at",{ascending:false}),sb.from("responses").select("survey_id,submitted_at").order("submitted_at",{ascending:false}).limit(10000),sb.from("admin_activity").select("*").order("created_at",{ascending:false}).limit(8)]);
+ const S=s.data||[],Rs=r.data||[],n=x=>S.filter(y=>x.includes(y.status)).length,days=[...Array(14)].map((_,i)=>{const d=new Date(Date.now()-(13-i)*864e5).toLocaleDateString("sv");return[d,Rs.filter(x=>new Date(x.submitted_at).toLocaleDateString("sv")==d).length]}),mx=Math.max(1,...days.map(x=>x[1]));
+ V.innerHTML=`<div class="g">${[["Tổng khảo sát",S.length],["Đang hoạt động",n(["published"])],["Bản nháp",n(["draft"])],["Đã đóng / lưu trữ",n(["closed","archived"])],["Tổng phản hồi",Rs.length]].map(x=>`<div class="card"><div class="k">${x[1]}</div><small>${x[0]}</small></div>`).join("")}</div>
+ <div class="card"><b>Phản hồi 14 ngày gần đây</b><div class="bars">${days.map(d=>`<i style="height:${d[1]/mx*100}%" title="${d[0]}: ${d[1]}"></i>`).join("")}</div></div>
+ <div class="g2"><div class="card"><b>Phản hồi theo khảo sát</b>${S.map(x=>{const c=Rs.filter(y=>y.survey_id==x.id).length;return`<div class="hb"><span style="width:45%">${esc(x.title)}</span><div style="width:${c/Math.max(1,Rs.length)*100}%"></div><b>${c}</b></div>`}).join("")||"<p class=m>Chưa có dữ liệu</p>"}</div>
+ <div class="card"><b>Khảo sát mới cập nhật</b>${S.slice(0,6).map(x=>`<div class="row" style="justify-content:space-between"><span>${esc(x.title)}</span><small>${fmt(x.updated_at)}</small></div>`).join("")}</div></div>
+ <div class="card"><b>Hoạt động gần đây của quản trị viên</b>${(a.data||[]).map(x=>`<div class="m">${fmt(x.created_at)} · ${{insert:"Tạo",update:"Cập nhật",delete:"Xóa"}[x.action]||x.action} khảo sát “${esc(x.detail?.title)}” (${ST[x.detail?.status]||""})</div>`).join("")||"<p class=m>Chưa có hoạt động</p>"}</div>`}
+async function list(){const V=$("#v");const{data}=await sb.from("surveys").select("*").order("updated_at",{ascending:false});
+ const L=(data||[]).filter(x=>(!FL.s||x.status==FL.s)&&(!FL.q||(x.title+x.slug).toLowerCase().includes(FL.q.toLowerCase())));
+ V.innerHTML=`<div class="row"><input id="fq" style="max-width:260px" placeholder="🔍 Tìm khảo sát" value="${esc(FL.q)}"><select id="fs" style="max-width:170px"><option value="">Mọi trạng thái</option>${Object.entries(ST).map(x=>`<option value="${x[0]}" ${FL.s==x[0]?"selected":""}>${x[1]}</option>`).join("")}</select><span class="sp"></span><button class="p" id="new">+ Tạo khảo sát</button></div>
+ <div class="card" style="margin-top:10px;overflow:auto"><table><tr><th>Khảo sát</th><th>Trạng thái</th><th>Cập nhật</th><th></th></tr>${L.map(x=>`<tr><td><b>${esc(x.title)}</b><br><small>/${esc(x.slug)}</small></td><td><span class="tag">${ST[x.status]}</span></td><td><small>${fmt(x.updated_at)}</small></td><td class="row">
+ <button data-edit="${x.id}">Sửa</button>${x.status=="published"?`<a class="btn" target="_blank" href="${PUBLIC_PAGE}?s=${x.slug}">Xem</a>`:""}
+ ${{draft:`<button data-st="${x.id}|published">Xuất bản</button>`,published:`<button data-st="${x.id}|closed">Đóng</button>`,closed:`<button data-st="${x.id}|published">Mở lại</button>`,archived:`<button data-st="${x.id}|closed">Khôi phục</button>`}[x.status]}
+ ${x.status!="archived"?`<button data-st="${x.id}|archived">Lưu trữ</button>`:""}<button data-dup="${x.id}">Nhân bản</button><button class="d" data-del="${x.id}">Xóa</button></td></tr>`).join("")}</table></div>`;
+ $("#fq").oninput=e=>{FL.q=e.target.value;list().then(()=>{const i=$("#fq");i.focus();i.setSelectionRange(99,99)})};$("#fs").onchange=e=>{FL.s=e.target.value;list()}}
+async function load(id){const[s,sc,q]=await Promise.all([sb.from("surveys").select("*").eq("id",id).single(),sb.from("survey_sections").select("*").eq("survey_id",id).order("position"),sb.from("questions").select("*, question_options(*)").eq("survey_id",id).order("position")]);
+ return{s:s.data,secs:sc.data.map(x=>({...x,qs:q.data.filter(y=>y.section_id==x.id).map(y=>({...y,opts:(y.question_options||[]).sort((a,b)=>a.position-b.position)}))}))}}
+async function dup(id){const o=await load(id),n=uid(),s={...o.s,id:n,slug:o.s.slug+"-"+Math.random().toString(36).slice(2,6),title:o.s.title+" (bản sao)",status:"draft",created_at:undefined,updated_at:undefined};
+ let e=(await sb.from("surveys").insert(s)).error;if(e)return alert(e.message);
+ const sm={},qm={};for(const sc of o.secs){sm[sc.id]=uid();await sb.from("survey_sections").insert({id:sm[sc.id],survey_id:n,title:sc.title,description:sc.description,position:sc.position})}
+ for(const sc of o.secs)for(const q of sc.qs){qm[q.id]=uid();const{question_options,...r}=q;delete r.opts;await sb.from("questions").insert({...r,id:qm[q.id],survey_id:n,section_id:sm[sc.id]});
+  if(q.opts.length)await sb.from("question_options").insert(q.opts.map(({id,question_id,...p})=>({...p,question_id:qm[q.id]})))}list()}
+const nq=()=>({id:uid(),code:"cau_"+Math.random().toString(36).slice(2,6),type:"short_text",label:"Câu hỏi mới",help:"",required:false,position:0,rules:{},visible_if:null,allow_other:false,config:{},opts:[],_new:1});
+function vparse(q){const c=q.visible_if,x=c&&(c.all||c.any||[])[0];return{vq:x?.q||"",vop:x?.op||"filled",vval:(x?.value||[]).join?.(",")??x?.value??"",vraw:c&&((c.all||c.any||[]).length>1||c.any)?c:null}}
+async function build(id){const V=$("#v");if(id!==undefined){B=id?await load(id):{s:{id:uid(),slug:"",title:"",status:"draft",theme:{primary:"#0b6fb8",secondary:"#e8f3fb",layout:"single"},is_listed:true,require_login:false,thanks_title:"Gửi phản hồi thành công!",thanks_message:"Cảm ơn bạn đã tham gia khảo sát.",_new:1},secs:[{id:uid(),title:"Phần 1",description:"",position:1,qs:[],_new:1}]};B.del={s:[],q:[]};B.secs.forEach(s=>s.qs.forEach(q=>{Object.assign(q,vparse(q));q.optText=(q.opts||[]).map(o=>[o.value,o.label!=o.value?o.label:"",o.description||"",o.image_path||"",o.meta&&Object.keys(o.meta).length?JSON.stringify(o.meta):""].join("|").replace(/\|+$/,"")).join("\n");q.rulesText=JSON.stringify(q.rules||{});q.cfgText=JSON.stringify(q.config||{})}))}
+ const s=B.s,codes=B.secs.flatMap(x=>x.qs.map(q=>q.code)),I=(p,v,t="text")=>`<input type="${t}" data-p="${p}" value="${esc(v)}">`,dt=v=>v?new Date(new Date(v)-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16):"";
+ V.innerHTML=`<div class="row"><button id="bk">← Danh sách</button><b>${s._new?"Tạo khảo sát":"Sửa: "+esc(s.title)}</b><span class="tag">${ST[s.status]}</span><span class="sp"></span><button class="p" id="save">💾 Lưu thay đổi</button></div>
+ <div class="card"><div class="g2"><div><label class="l">Tiêu đề</label>${I("s.title",s.title)}</div><div><label class="l">Đường dẫn (slug)</label>${I("s.slug",s.slug)}</div></div>
+ <label class="l">Mô tả ngắn</label>${I("s.description",s.description)}<label class="l">Nội dung giới thiệu</label><textarea data-p="s.intro" rows="2">${esc(s.intro)}</textarea>
+ <div class="g"><div><label class="l">Màu chủ đạo</label>${I("s.theme.primary",s.theme.primary,"color")}</div><div><label class="l">Màu phụ</label>${I("s.theme.secondary",s.theme.secondary,"color")}</div>
+ <div><label class="l">Bắt đầu</label><input type="datetime-local" data-p="s.starts_at" value="${dt(s.starts_at)}"></div><div><label class="l">Kết thúc</label><input type="datetime-local" data-p="s.ends_at" value="${dt(s.ends_at)}"></div>
+ <div><label class="l">Giới hạn phản hồi</label><input type="number" data-p="s.max_responses" value="${s.max_responses??""}"></div><div><label class="l">Câu hỏi chống trùng (mã)</label><select data-p="s.dedupe_question"><option value="">— Không —</option>${codes.map(c=>`<option ${s.dedupe_question==c?"selected":""}>${esc(c)}</option>`).join("")}</select></div></div>
+ <div class="row" style="margin-top:8px"><label><input type="checkbox" data-p="s.is_listed" ${s.is_listed?"checked":""}> Hiển thị trong danh sách công khai</label><label><input type="checkbox" data-p="s.require_login" ${s.require_login?"checked":""}> Yêu cầu đăng nhập</label></div>
+ <div class="g2"><div><label class="l">Logo ${s.logo_path?"✔":""}</label><input type="file" accept="image/*" data-up="logo_path"></div><div><label class="l">Ảnh bìa ${s.cover_path?"✔":""}</label><input type="file" accept="image/*" data-up="cover_path"></div>
+ <div><label class="l">Tiêu đề sau khi gửi</label>${I("s.thanks_title",s.thanks_title)}</div><div><label class="l">Nội dung sau khi gửi</label>${I("s.thanks_message",s.thanks_message)}</div></div></div>
+ ${B.secs.map((sc,i)=>`<div class="card"><div class="row"><b>Phần ${i+1}</b>${I(`secs.${i}.title`,sc.title)}<button data-mv="s|${i}|-1">↑</button><button data-mv="s|${i}|1">↓</button><button class="d" data-rs="${i}">Xóa phần</button></div>
+ ${sc.qs.map((q,j)=>`<div class="qb"><div class="row"><span class="tag">${j+1}</span><select data-p="secs.${i}.qs.${j}.type" style="width:170px">${Object.entries(TY).map(x=>`<option value="${x[0]}" ${q.type==x[0]?"selected":""}>${x[1]}</option>`).join("")}</select><div style="flex:1;min-width:180px">${I(`secs.${i}.qs.${j}.label`,q.label)}</div>
+ <label><input type="checkbox" data-p="secs.${i}.qs.${j}.required" ${q.required?"checked":""}> Bắt buộc</label><button data-mv="q|${i}.${j}|-1">↑</button><button data-mv="q|${i}.${j}|1">↓</button><select data-mvs="${i}.${j}" style="width:130px"><option value="">Chuyển phần…</option>${B.secs.map((x,k)=>k==i?"":`<option value="${k}">${esc(x.title)}</option>`).join("")}</select><button class="d" data-rq="${i}.${j}">✕</button></div>
+ <div class="g2"><div><label class="l">Mã câu hỏi</label>${I(`secs.${i}.qs.${j}.code`,q.code)}</div><div><label class="l">Hướng dẫn trả lời</label>${I(`secs.${i}.qs.${j}.help`,q.help)}</div></div>
+ ${["single_choice","multi_choice","dropdown"].includes(q.type)?`<label class="l">Phương án (mỗi dòng: giá trị|nhãn|mô tả|đường dẫn ảnh|meta JSON)</label><textarea rows="4" data-p="secs.${i}.qs.${j}.optText">${esc(q.optText)}</textarea><label><input type="checkbox" data-p="secs.${i}.qs.${j}.allow_other" ${q.allow_other?"checked":""}> Cho phép nhập giá trị khác</label>`:""}
+ <div class="g"><div><label class="l">Hiển thị khi câu</label><select data-p="secs.${i}.qs.${j}.vq"><option value="">— Luôn hiển thị —</option>${codes.filter(c=>c!=q.code).map(c=>`<option ${q.vq==c?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+ <div><label class="l">Điều kiện</label><select data-p="secs.${i}.qs.${j}.vop">${[["filled","đã trả lời"],["empty","chưa trả lời"],["eq","bằng"],["neq","khác"],["in","thuộc (cách nhau dấu phẩy)"]].map(x=>`<option value="${x[0]}" ${q.vop==x[0]?"selected":""}>${x[1]}</option>`).join("")}</select></div><div><label class="l">Giá trị</label>${I(`secs.${i}.qs.${j}.vval`,q.vval)}</div></div>
+ ${q.vraw?`<small>⚠ Điều kiện phức tạp được giữ nguyên nếu bạn không chọn câu hỏi ở trên.</small>`:""}
+ <div class="g2"><div><label class="l">Quy tắc kiểm tra (JSON: maxLength, pattern, min, max, minItems…)</label>${I(`secs.${i}.qs.${j}.rulesText`,q.rulesText)}</div><div><label class="l">Cấu hình (JSON: multiple, filters, max…)</label>${I(`secs.${i}.qs.${j}.cfgText`,q.cfgText)}</div></div>
+ <label class="l">Giá trị mặc định (JSON, tùy chọn)</label>${I(`secs.${i}.qs.${j}.dv`,q.dv??(q.default_value==null?"":JSON.stringify(q.default_value)))}</div>`).join("")}
+ <button data-aq="${i}">+ Thêm câu hỏi</button></div>`).join("")}<button id="as">+ Thêm phần</button>`}
+const setP=(o,p,v)=>{const k=p.split(".");let t=o;k.slice(0,-1).forEach(x=>t=t[x]);t[k.at(-1)]=v};
+async function save(){const s=B.s;try{const J=(t,d)=>{if(!t||!String(t).trim())return d;try{return JSON.parse(t)}catch{throw new Error("JSON không hợp lệ: "+t)}};
+ if(!s.title||!s.slug)throw new Error("Cần nhập tiêu đề và đường dẫn.");
+ const S={id:s.id,slug:s.slug,title:s.title,description:s.description||null,intro:s.intro||null,theme:s.theme,is_listed:s.is_listed,require_login:s.require_login,starts_at:s.starts_at?new Date(s.starts_at).toISOString():null,ends_at:s.ends_at?new Date(s.ends_at).toISOString():null,max_responses:s.max_responses?+s.max_responses:null,dedupe_question:s.dedupe_question||null,logo_path:s.logo_path||null,cover_path:s.cover_path||null,thanks_title:s.thanks_title,thanks_message:s.thanks_message};
+ const{data:u}=await sb.auth.getUser();if(s._new)S.created_by=u.user.id;
+ let r=await sb.from("surveys").upsert(S);if(r.error)throw r.error;
+ const SC=B.secs.map((x,i)=>({id:x.id,survey_id:s.id,title:x.title,description:x.description||null,position:i+1}));if(SC.length){r=await sb.from("survey_sections").upsert(SC);if(r.error)throw r.error}
+ const QS=[],OP=[];B.secs.forEach((sc,i)=>sc.qs.forEach((q,j)=>{let vi=q.vraw;if(q.vq){const v=q.vop=="in"?String(q.vval).split(",").map(x=>x.trim()).filter(Boolean):q.vop=="eq"||q.vop=="neq"?q.vval:undefined;vi={all:[{q:q.vq,op:q.vop,...(v!==undefined?{value:v}:{})}]}}else if(!q.vraw)vi=null;
+  QS.push({id:q.id,survey_id:s.id,section_id:sc.id,code:q.code,type:q.type,label:q.label,help:q.help||null,required:!!q.required,position:j+1,default_value:q.dv?J(q.dv,null):null,rules:J(q.rulesText,{}),visible_if:vi,allow_other:!!q.allow_other,config:J(q.cfgText,{})});
+  if(["single_choice","multi_choice","dropdown"].includes(q.type))(q.optText||"").split("\n").filter(x=>x.trim()).forEach((l,k)=>{const[v,lb,d,im,m]=l.split("|");OP.push({question_id:q.id,value:v.trim(),label:(lb||v).trim(),description:d||null,image_path:im||null,meta:J(m,{}),position:k+1})})}));
+ if(B.del.q.length){const c=await sb.from("responses").select("id",{count:"exact",head:true}).eq("survey_id",s.id);if(c.count&&!confirm("Khảo sát đã có phản hồi. Xóa câu hỏi sẽ xóa luôn câu trả lời tương ứng. Tiếp tục?"))return;r=await sb.from("questions").delete().in("id",B.del.q);if(r.error)throw r.error}
+ if(B.del.s.length){r=await sb.from("survey_sections").delete().in("id",B.del.s);if(r.error)throw r.error}
+ if(QS.length){r=await sb.from("questions").upsert(QS);if(r.error)throw r.error;r=await sb.from("question_options").delete().in("question_id",QS.map(x=>x.id));if(r.error)throw r.error;if(OP.length){r=await sb.from("question_options").insert(OP);if(r.error)throw r.error}}
+ alert("Đã lưu khảo sát.");build(s.id)}catch(e){alert("Lỗi khi lưu: "+(e.message||e))}}
+async function resp(sid){const V=$("#v"),{data:S}=await sb.from("surveys").select("id,title").order("updated_at",{ascending:false});sid=sid||R?.sid||S?.[0]?.id;
+ if(!sid){V.innerHTML="<p>Chưa có khảo sát.</p>";return}
+ const[qs,rs]=await Promise.all([sb.from("questions").select("id,code,type,label,survey_sections(position),position").eq("survey_id",sid),sb.from("responses").select("id,submitted_at,response_answers(question_id,value)").eq("survey_id",sid).order("submitted_at",{ascending:false}).limit(5000)]);
+ const Q=qs.data.filter(q=>q.type!="heading").sort((a,b)=>a.survey_sections.position-b.survey_sections.position||a.position-b.position);
+ R={sid,Q,rows:(rs.data||[]).map(r=>({id:r.id,t:r.submitted_at,a:Object.fromEntries(r.response_answers.map(x=>[x.question_id,x.value]))})),q:R?.sid==sid?R.q:"",f:R?.sid==sid?R.f:"",to:R?.sid==sid?R.to:""};drawResp(S)}
+const txt=v=>Array.isArray(v)?v.join("; "):v??"";
+function rows(){const{rows,q,f,to}=R;return rows.filter(r=>(!f||r.t>=f)&&(!to||r.t<=to+"T23:59:59")&&(!q||JSON.stringify(Object.values(r.a)).toLowerCase().includes(q.toLowerCase())))}
+function drawResp(S){const V=$("#v"),L=rows();S=S||R.S;R.S=S;
+ const st=R.Q.filter(q=>["single_choice","multi_choice","dropdown","rating"].includes(q.type)).map(q=>{const c={};L.forEach(r=>{const v=r.a[q.id];(Array.isArray(v)?v:v==null?[]:[v]).forEach(x=>c[x]=(c[x]||0)+1)});const e=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,8),mx=Math.max(1,...e.map(x=>x[1]));return`<div class="card"><b>${esc(q.label)}</b>${e.map(x=>`<div class="hb"><span style="width:40%">${esc(x[0])}</span><div style="width:${x[1]/mx*45}%"></div><b>${x[1]}</b></div>`).join("")||"<p class=m>Chưa có dữ liệu</p>"}</div>`}).join("");
+ V.innerHTML=`<div class="row"><select id="rs" style="max-width:300px">${S.map(x=>`<option value="${x.id}" ${x.id==R.sid?"selected":""}>${esc(x.title)}</option>`).join("")}</select><input id="rq" style="max-width:200px" placeholder="🔍 Tìm phản hồi" value="${esc(R.q)}"><input type="date" id="rf" style="max-width:150px" value="${R.f}"><input type="date" id="rt" style="max-width:150px" value="${R.to}"><span class="sp"></span><b>${L.length} phản hồi</b><button id="csv">CSV</button><button id="xls">XLSX</button></div>
+ <div class="card" style="margin-top:10px;overflow:auto"><table><tr><th>Thời điểm gửi</th>${R.Q.slice(0,4).map(q=>`<th>${esc(q.label.slice(0,28))}</th>`).join("")}<th></th></tr>${L.slice(0,200).map(r=>`<tr><td>${fmt(r.t)}</td>${R.Q.slice(0,4).map(q=>`<td>${esc(String(txt(r.a[q.id])).slice(0,60))}</td>`).join("")}<td><button data-vr="${r.id}">Chi tiết</button> <button class="d x" data-dr="${r.id}">✕</button></td></tr>`).join("")}</table></div><h3>Thống kê theo câu hỏi</h3>${st}`}
+function table(){return rows().map(r=>({"Thời điểm gửi":fmt(r.t),...Object.fromEntries(R.Q.map(q=>[q.label,txt(r.a[q.id])]))}))}
+function dl(name,blob){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click()}
+document.addEventListener("input",e=>{const t=e.target;if(t.dataset.p&&(t.tagName=="INPUT"||t.tagName=="TEXTAREA")&&t.type!="checkbox"&&t.type!="file"){setP(B,t.dataset.p,t.type=="color"||t.type=="datetime-local"||t.type=="number"?t.value:t.value)}
+ if(t.id=="rq"){R.q=t.value;drawResp();const i=$("#rq");i.focus();i.setSelectionRange(99,99)}});
+document.addEventListener("change",async e=>{const t=e.target;if(t.dataset.p&&(t.type=="checkbox"||t.tagName=="SELECT")){setP(B,t.dataset.p,t.type=="checkbox"?t.checked:t.value);if(/\.type$|\.code$|\.vq$/.test(t.dataset.p)||t.dataset.p=="s.dedupe_question")build()}
+ if(t.dataset.p&&/\.code$/.test(t.dataset.p))build();
+ if(t.dataset.up&&t.files[0]){const f=t.files[0],p=`${B.s.id}/${Date.now()}-${f.name.replace(/[^\w.-]/g,"_")}`,{error}=await sb.storage.from("survey-assets").upload(p,f);if(error)return alert(error.message);B.s[t.dataset.up]=p;build()}
+ if(t.dataset.mvs&&t.value){const[i,j]=t.dataset.mvs.split(".").map(Number),[q]=B.secs[i].qs.splice(j,1);B.secs[+t.value].qs.push(q);build()}
+ if(t.id=="rs"){R={sid:t.value};resp(t.value)}if(t.id=="rf"){R.f=t.value;drawResp()}if(t.id=="rt"){R.to=t.value;drawResp()}});
+document.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
+ if(d.go)go(d.go);else if(t.id=="out"){await sb.auth.signOut();boot()}
+ else if(t.id=="li"){const{error}=await sb.auth.signInWithPassword({email:$("#em").value,password:$("#pw").value});error?login("Email hoặc mật khẩu không đúng."):boot()}
+ else if(t.id=="new")build(null);else if(d.edit)build(d.edit);else if(t.id=="bk")list();else if(t.id=="save")save();
+ else if(d.st){const[id,s]=d.st.split("|"),{error}=await sb.from("surveys").update({status:s}).eq("id",id);if(error)alert(error.message);list()}
+ else if(d.dup)dup(d.dup);
+ else if(d.del){if(!confirm("Xóa khảo sát này? Chỉ xóa được khi chưa có phản hồi."))return;const{error}=await sb.from("surveys").delete().eq("id",d.del);if(error)alert(error.message);list()}
+ else if(t.id=="as"){B.secs.push({id:uid(),title:"Phần "+(B.secs.length+1),description:"",qs:[],_new:1});build()}
+ else if(d.aq){B.secs[d.aq].qs.push(Object.assign(nq(),{vq:"",vop:"filled",vval:"",optText:"",rulesText:"{}",cfgText:"{}"}));build()}
+ else if(d.rs){if(!confirm("Xóa phần này cùng toàn bộ câu hỏi?"))return;const[s]=B.secs.splice(d.rs,1);B.del.s.push(s.id);s.qs.forEach(q=>B.del.q.push(q.id));build()}
+ else if(d.rq){const[i,j]=d.rq.split(".").map(Number),[q]=B.secs[i].qs.splice(j,1);B.del.q.push(q.id);build()}
+ else if(d.mv){const[k,p,n]=d.mv.split("|"),m=+n;if(k=="s"){const i=+p,a=B.secs;if(a[i+m]){[a[i],a[i+m]]=[a[i+m],a[i]]}}else{const[i,j]=p.split(".").map(Number),a=B.secs[i].qs;if(a[j+m])[a[j],a[j+m]]=[a[j+m],a[j]]}build()}
+ else if(d.vr){const r=R.rows.find(x=>x.id==d.vr),m=document.createElement("div");m.className="md";m.innerHTML=`<div><b>Phản hồi lúc ${fmt(r.t)}</b>${R.Q.map(q=>`<p><small>${esc(q.label)}</small><br>${esc(txt(r.a[q.id]))||"—"}</p>`).join("")}<button onclick="this.closest('.md').remove()">Đóng</button></div>`;document.body.append(m)}
+ else if(d.dr){if(confirm("Xóa phản hồi này?")){await sb.from("responses").delete().eq("id",d.dr);resp(R.sid)}}
+ else if(t.id=="csv"){const T=table(),h=Object.keys(T[0]||{}),c=[h,...T.map(r=>h.map(k=>r[k]))].map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\r\n");dl("phan-hoi.csv",new Blob(["\ufeff"+c],{type:"text/csv"}))}
+ else if(t.id=="xls"){const w=XLSX.utils.book_new();XLSX.utils.book_append_sheet(w,XLSX.utils.json_to_sheet(table()),"Phản hồi");XLSX.writeFile(w,"phan-hoi.xlsx")}});
+boot();
+</script></body></html>
